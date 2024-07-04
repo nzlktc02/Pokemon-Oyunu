@@ -1,0 +1,282 @@
+import random
+import tkinter as tk
+from tkinter import messagebox
+from PIL import Image, ImageTk
+import os
+
+class Card:
+    def __init__(self, name="Unknown", damage=0):
+        self._name = name
+        self._damage = damage
+
+    def __str__(self):
+        return f"{self._name} (Damage: {self._damage})"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
+    def damage(self):
+        return self._damage
+
+    @damage.setter
+    def damage(self, value):
+        self._damage = value
+
+    def get_image_path(self):
+        return f"images/{self._name.lower()}.jpg"
+
+class PokemonCard(Card):
+    def __init__(self, name="Unknown", damage=0):
+        super().__init__(name, damage)
+
+class Player:
+    def __init__(self, name="Player"):
+        self._name = name
+        self._hand = []
+        self._score = 0
+
+    def draw_card(self, deck):
+        if deck:
+            self._hand.append(deck.pop())
+
+    def play_card(self, index):
+        if self._hand:
+            return self._hand.pop(index)
+        return None
+
+    def __str__(self):
+        return f"{self._name}: Score = {self._score}"
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
+    def hand(self):
+        return self._hand
+
+    @hand.setter
+    def hand(self, value):
+        self._hand = value
+
+    @property
+    def score(self):
+        return self._score
+
+    @score.setter
+    def score(self, value):
+        self._score = value
+
+class HumanPlayer(Player):
+    def __init__(self, name="Player"):
+        super().__init__(name)
+
+class ComputerPlayer(Player):
+    def __init__(self, name="Computer"):
+        super().__init__(name)
+
+class Game:
+    def __init__(self):
+        self.deck = self.create_deck()
+        self.player = HumanPlayer("Player")
+        self.computer = ComputerPlayer("Computer")
+        self.middle_cards = []  # Ortada kalan kartlar
+        self.current_cards = []
+        self.player_card_index = None
+        self.window = tk.Tk()
+        self.window.title("Pokemon Kart Oyunu")
+        self.create_widgets()
+        self.show_start_screen()
+
+    def create_deck(self):
+        names = ["Bulbasaur", "Charmander", "Squirtle", "Pikachu", "Jigglypuff",
+                 "Meowth", "Psyduck", "Snorlax", "Gengar", "Eevee"]
+        damages = [70, 50, 40, 200, 70, 40, 70, 90, 130, 40]
+        deck = [PokemonCard(names[i], damages[i]) for i in range(10)]
+        random.shuffle(deck)
+        return deck
+
+    def shuffle_deck(self):
+        random.shuffle(self.deck)
+
+    def deal_cards(self):
+        for _ in range(3):
+            self.player.draw_card(self.deck)
+            self.computer.draw_card(self.deck)
+        self.middle_cards = self.deck[:4]
+        self.deck = self.deck[4:]
+
+    def play_round(self):
+        if self.mode == "PlayerVsComputer":
+            player_card = self.player.play_card(self.player_card_index)
+            computer_card = self.computer.play_card(random.randint(0, len(self.computer.hand) - 1))
+        else:
+            player_card = self.player.play_card(random.randint(0, len(self.player.hand) - 1))
+            computer_card = self.computer.play_card(random.randint(0, len(self.computer.hand) - 1))
+
+        self.current_cards = [player_card, computer_card]
+
+        self.update_card_images(player_card, computer_card)
+
+        if player_card.damage > computer_card.damage:
+            self.player.score += 5
+            result_text = "Oyuncu bu raundu kazandı!" if self.mode == "PlayerVsComputer" else "Bilgisayar 1 bu raundu kazandı!"
+        elif player_card.damage < computer_card.damage:
+            self.computer.score += 5
+            result_text = "Bilgisayar bu raundu kazandı!" if self.mode == "PlayerVsComputer" else "Bilgisayar 2 bu raundu kazandı!"
+        else:
+            result_text = "Berabere!"
+
+        messagebox.showinfo("Raund Sonucu", result_text)
+        self.update_scores()
+        self.draw_middle_cards()
+
+        if not self.deck and not self.player.hand and not self.computer.hand:
+            self.end_game()
+        else:
+            self.play_button.config(state=tk.NORMAL)
+
+    def draw_middle_cards(self):
+        if self.middle_cards:
+            self.player.draw_card(self.middle_cards)
+            self.computer.draw_card(self.middle_cards)
+
+    def start_game(self):
+        self.deal_cards()
+        self.update_hand()
+        self.update_scores()
+
+    def end_game(self):
+        if self.player.score > self.computer.score:
+            winner = "Oyuncu oyunu kazandı!" if self.mode == "PlayerVsComputer" else "Bilgisayar 1 oyunu kazandı!"
+        elif self.player.score < self.computer.score:
+            winner = "Bilgisayar oyunu kazandı!" if self.mode == "PlayerVsComputer" else "Bilgisayar 2 oyunu kazandı!"
+        else:
+            winner = "Oyun berabere bitti!"
+
+        messagebox.showinfo("Oyun Bitti", winner)
+        self.window.quit()
+
+    def show_start_screen(self):
+        self.start_frame = tk.Frame(self.window)
+        self.start_frame.pack(pady=20)
+
+        player_vs_computer_button = tk.Button(self.start_frame, text="Oyuncu vs Bilgisayar", command=self.start_player_vs_computer)
+        player_vs_computer_button.pack(pady=10)
+
+        computer_vs_computer_button = tk.Button(self.start_frame, text="Bilgisayar vs Bilgisayar", command=self.start_computer_vs_computer)
+        computer_vs_computer_button.pack(pady=10)
+
+    def start_player_vs_computer(self):
+        self.mode = "PlayerVsComputer"
+        self.player_frame.config(text="Oyuncu")
+        self.computer_frame.config(text="Bilgisayar")
+        self.start_frame.pack_forget()
+        self.start_game()
+
+    def start_computer_vs_computer(self):
+        self.mode = "ComputerVsComputer"
+        self.player_frame.config(text="Bilgisayar 1")
+        self.computer_frame.config(text="Bilgisayar 2")
+        self.start_frame.pack_forget()
+        self.start_game()
+
+    def create_widgets(self):
+        self.player_frame = tk.LabelFrame(self.window, text="Oyuncu")
+        self.player_frame.pack(side="left", padx=10, pady=10)
+
+        self.computer_frame = tk.LabelFrame(self.window, text="Bilgisayar")
+        self.computer_frame.pack(side="right", padx=10, pady=10)
+
+        self.player_card_image = tk.Label(self.player_frame)
+        self.player_card_image.pack(pady=20)
+
+        self.computer_card_image = tk.Label(self.computer_frame)
+        self.computer_card_image.pack(pady=20)
+
+        self.play_button = tk.Button(self.window, text="Raund Oyna", command=self.play_round)
+        self.play_button.pack(pady=20)
+
+        self.player_score_label = tk.Label(self.window, text="Oyuncu Skoru: 0")
+        self.player_score_label.pack(side="left", padx=10)
+
+        self.computer_score_label = tk.Label(self.window, text="Bilgisayar Skoru: 0")
+        self.computer_score_label.pack(side="right", padx=10)
+
+        self.player_hand_frame = tk.Frame(self.player_frame)
+        self.player_hand_frame.pack()
+
+    def update_hand(self):
+        for widget in self.player_hand_frame.winfo_children():
+            widget.destroy()
+
+        if self.mode == "PlayerVsComputer":
+            for i, card in enumerate(self.player.hand):
+                card_button = tk.Button(self.player_hand_frame, text=str(card), command=lambda i=i: self.select_card(i))
+                card_button.pack(side="left")
+        else:
+            for _ in self.player.hand:
+                card_label = tk.Label(self.player_hand_frame, text="Kart")
+                card_label.pack(side="left")
+
+        if self.deck:
+            self.player.draw_card(self.deck)
+            self.computer.draw_card(self.deck)
+
+    def select_card(self, index):
+        self.player_card_index = index
+        self.play_button.config(state=tk.NORMAL)
+
+    def update_card_images(self, player_card, computer_card):
+        player_img_path = player_card.get_image_path()
+        computer_img_path = computer_card.get_image_path()
+        fixed_size = (200, 300)  # Set the size for the images
+
+        print(f"Checking paths:\nPlayer image path: {player_img_path}\nComputer image path: {computer_img_path}")
+
+        if not os.path.exists(player_img_path):
+            print(f"File not found: {player_img_path}")
+        if not os.path.exists(computer_img_path):
+            print(f"File not found: {computer_img_path}")
+
+        try:
+            player_img = Image.open(player_img_path).resize(fixed_size, Image.LANCZOS)
+        except (FileNotFoundError, IOError) as e:
+            messagebox.showerror("Hata", f"Player resmi yüklenemedi: {e}")
+            self.window.quit()
+
+        try:
+            computer_img = Image.open(computer_img_path).resize(fixed_size, Image.LANCZOS)
+        except (FileNotFoundError, IOError) as e:
+            messagebox.showerror("Hata", f"Computer resmi yüklenemedi: {e}")
+            self.window.quit()
+
+        player_img = ImageTk.PhotoImage(player_img)
+        computer_img = ImageTk.PhotoImage(computer_img)
+
+        self.player_card_image.configure(image=player_img)
+        self.player_card_image.image = player_img
+
+        self.computer_card_image.configure(image=computer_img)
+        self.computer_card_image.image = computer_img
+
+    def update_scores(self):
+        self.player_score_label.config(text=f"Oyuncu Skoru: {self.player.score}" if self.mode == "PlayerVsComputer" else f"Bilgisayar 1 Skoru: {self.player.score}")
+        self.computer_score_label.config(text=f"Bilgisayar Skoru: {self.computer.score}" if self.mode == "PlayerVsComputer" else f"Bilgisayar 2 Skoru: {self.computer.score}")
+
+    def play_game(self):
+        self.window.mainloop()
+
+if __name__ == "__main__":
+    game = Game()
+    game.play_game()
