@@ -1,0 +1,1 @@
+Bu proje, Python ve Tkinter kullanılarak geliştirilmiş basit bir Pokémon kart oyunu uygulamasıdır. Oyuncu ve bilgisayar (veya iki bilgisayar) arasında turlara dayalı bir savaş mantığı ile çalışır. Her turda kartlar karşılaştırılır, yüksek hasar veren kart raundu kazanır ve puanlar güncellenir.
